@@ -1,0 +1,79 @@
+TrackPedia Project - Heuristic Evaluation & Improvement Report
+
+Nielsen’s 10 Heuristics Assessment:
+
+List of Heuristic Violations Identified & Matched Values:
+
+1. Violation: Missing feedback during background geocoding/searching.
+   Heuristic: 1. Visibility of System Status
+   Reason: Users were left wondering if the search was actually working or if the app was frozen when no immediate local results appeared.
+
+2. Violation: Technical ID strings shown instead of track names in URL or headers.
+   Heuristic: 2. Match Between System and Real World
+   Reason: Displaying database UIDs or internal "osm-123" strings confuses users who just want to see "Laguna Seca".
+
+3. Violation: No way to reset the checklist once items were checked.
+   Heuristic: 3. User Control and Freedom
+   Reason: Users who finished one track day and wanted to reuse the list had to manually uncheck 15+ items or clear browser cache.
+
+4. Violation: Inconsistent button styling between the Home and Planning pages.
+   Heuristic: 4. Consistency and Standards
+   Reason: Mixed use of pill-shaped and square buttons made the app feel fragmented and less professional.
+
+5. Violation: Users could accidentally book for a past date.
+   Heuristic: 5. Error Prevention
+   Reason: Allowing date selection in the past leads to failed transactions and user frustration.
+
+6. Violation: Forcing users to remember which tracks they had previously compared.
+   Heuristic: 6. Recognition Rather Than Recall
+   Reason: There was no persistent "Comparison" view or history, meaning users had to re-search tracks multiple times.
+
+7. Violation: No shortcut to filter for specific vehicle types (Cars vs Bikes).
+   Heuristic: 7. Flexibility and Efficiency of Use
+   Reason: Experienced track riders had to scroll through mixed results, making the workflow inefficient.
+
+8. Violation: Cluttered result cards with excessive metadata (lat/long, internal tags).
+   Heuristic: 8. Aesthetic and Minimalist Design
+   Reason: Excessive data overwhelmed the user's ability to quickly compare prices and locations.
+
+9. Violation: Cryptic Firebase error messages on failed login/booking.
+   Heuristic: 9. Help Users Recognize, Diagnose, and Recover from Errors
+   Reason: Showing "auth/user-not-found" is technical jargon; it doesn't help the user understand they need to sign up.
+
+10. Violation: No guidance on what gear is actually required for a beginner.
+    Heuristic: 10. Help and Documentation
+    Reason: New users were left searching external sites for requirement lists, breaking the app's value proposition as a one-stop shop.
+
+---
+
+Addressed Heuristic Violations & Implementation Details:
+
+1. Visibility of System Status
+   Address: Added a 'Searching...' status indicator with a Loader2 spinner in the search bar. Implemented a 100% progress circle in the Checklist page that updates in real-time as items are ticked.
+
+2. Match Between System and Real World
+   Address: Replaced technical descriptions with domain-specific language (e.g., "Paddock Supplies", "Vehicle Prep", "Tech Inspection"). Used real track imagery and localized names from OpenStreetMap Nominatim.
+
+3. User Control and Freedom
+   Address: Implemented a "Reset" button for the checklist with a confirmation dialog to prevent accidental data loss while allowing users to restart their prep cycle.
+
+4. Consistency and Standards
+   Address: Standardized all primary actions to use the 'brand' blue color and Lucide-react icons. Applied a unified 'Navbar' across all views (Home, Planning, Results).
+
+5. Error Prevention
+   Address: Integrated 'react-datepicker' with constraints to prevent invalid date ranges. Added a confirmation prompt if a user tries to checkout without being signed in.
+
+6. Recognition Rather Than Recall
+   Address: Created a "Compare" feature that saves tracks to a temporary list, allowing users to view them side-by-side without re-searching. Added a "Recommended" sort that defaults to the most relevant items.
+
+7. Flexibility and Efficiency of Use
+   Address: Added "Vehicle Type" toggles (Car vs Motorcycle) across the Search and Checklist pages to instantly filter out irrelevant data for the user's specific hobby.
+
+8. Aesthetic and Minimalist Design
+   Address: Redesigned Result Cards to focus strictly on: Image, Name, Location, and Price. Moved secondary details (hotels, latitude) into sub-views or tooltips.
+
+9. Help Users Recognize, Diagnose, and Recover from Errors
+   Address: Replaced technical alerts with human-readable messages (e.g., "No tracks found - Try adjusting your search filters or searching for California").
+
+10. Help and Documentation
+    Address: Added "Rookie Tip" callouts and a dedicated "Track Day Checklist" page to guide beginners through the necessary preparations and documentation.

@@ -1,0 +1,135 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "avatar": { "type": "string" },
+        "bio": { "type": "string" },
+        "totalTrips": { "type": "number" },
+        "totalMiles": { "type": "number" }
+      },
+      "required": ["id", "name", "email", "avatar", "totalTrips"]
+    },
+    "Trip": {
+      "title": "Trip",
+      "description": "A group trip planning session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "date": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "completed"] },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["id", "name", "status", "ownerId"]
+    },
+    "Member": {
+      "title": "Member",
+      "description": "A member of a group trip",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "avatar": { "type": "string" },
+        "budget": { "type": "number" },
+        "hasVoted": { "type": "boolean" }
+      },
+      "required": ["id", "name", "avatar", "budget", "hasVoted"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "An expense logged during the trip",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "paidBy": { "type": "string" },
+        "splitWith": { "type": "array", "items": { "type": "string" } },
+        "date": { "type": "string", "format": "date-time" },
+        "receipt": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "settled"] }
+      },
+      "required": ["id", "description", "amount", "paidBy", "splitWith", "date", "status"]
+    },
+    "Vote": {
+      "title": "Vote",
+      "description": "A vote for a track, hotel, or member kick",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["track", "hotel", "kick"] },
+        "itemId": { "type": "string" },
+        "votedBy": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "type", "itemId", "votedBy"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A chat message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["text", "system"] }
+      },
+      "required": ["id", "senderId", "text", "timestamp", "type"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "A successful track day booking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "trackId": { "type": "string" },
+        "trackName": { "type": "string" },
+        "hotelId": { "type": "string" },
+        "hotelName": { "type": "string" },
+        "totalCost": { "type": "number" },
+        "checkIn": { "type": "string", "format": "date-time" },
+        "checkOut": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "trackId", "trackName", "totalCost", "checkIn", "checkOut", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles"
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "User bookings"
+    },
+    "/trips/{tripId}": {
+      "schema": "Trip",
+      "description": "Group trip metadata"
+    },
+    "/trips/{tripId}/members/{memberId}": {
+      "schema": "Member",
+      "description": "Trip members"
+    },
+    "/trips/{tripId}/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Trip expenses"
+    },
+    "/trips/{tripId}/votes/{voteId}": {
+      "schema": "Vote",
+      "description": "Trip votes"
+    },
+    "/trips/{tripId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Trip chat messages"
+    }
+  }
+}

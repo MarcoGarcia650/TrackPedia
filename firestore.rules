@@ -1,0 +1,172 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+    
+    function isMember(tripId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/trips/$(tripId)/members/$(request.auth.uid));
+    }
+
+    // 1. User Profiles
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.keys().hasAll(['id', 'name', 'email', 'avatar', 'totalTrips']) &&
+               data.keys().size() <= 7 &&
+               data.id == request.auth.uid &&
+               data.name is string && data.name.size() <= 100 &&
+               data.email is string && data.email.size() <= 200 &&
+               data.avatar is string && data.avatar.size() <= 1000 &&
+               data.totalTrips is number;
+      }
+
+      allow get: if isSignedIn(); // Allow reading profile to show names/avatars in group
+      allow list: if isSignedIn() && resource.data.id == request.auth.uid; // Only list self
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && 
+                      isValidUser(incoming()) && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'bio', 'totalTrips', 'totalMiles']);
+    }
+
+    // 2. Trips
+    match /trips/{tripId} {
+      function isValidTrip(data) {
+        return data.keys().hasAll(['id', 'name', 'status', 'ownerId']) &&
+               data.keys().size() <= 5 &&
+               isValidId(data.id) &&
+               data.name is string && data.name.size() <= 100 &&
+               data.status in ['active', 'completed'] &&
+               data.ownerId == request.auth.uid;
+      }
+
+      allow get: if isMember(tripId);
+      allow list: if isSignedIn() && isMember(tripId); // Rule enforces member check
+      allow create: if isSignedIn() && isValidTrip(incoming());
+      allow update: if isMember(tripId) && 
+                      isValidTrip(incoming()) && 
+                      (
+                        // Owner can update everything
+                        (existing().ownerId == request.auth.uid) ||
+                        // Members can only update status if needed (e.g. closing trip)
+                        (incoming().diff(existing()).affectedKeys().hasOnly(['status']))
+                      );
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+
+      // 3. Trip Sub-collections
+      match /members/{memberId} {
+        function isValidMember(data) {
+          return data.keys().hasAll(['id', 'name', 'avatar', 'budget', 'hasVoted']) &&
+                 data.keys().size() == 5 &&
+                 isValidId(data.id) &&
+                 data.name is string && data.name.size() <= 100 &&
+                 data.avatar is string && data.avatar.size() <= 1000 &&
+                 data.budget is number && data.budget >= 0 &&
+                 data.hasVoted is bool;
+        }
+
+        allow read: if isMember(tripId);
+        allow create: if isMember(tripId) && isValidMember(incoming());
+        allow update: if isMember(tripId) && 
+                        isValidMember(incoming()) && 
+                        (
+                          (request.auth.uid == memberId && incoming().diff(existing()).affectedKeys().hasOnly(['budget', 'hasVoted'])) ||
+                          (get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId == request.auth.uid)
+                        );
+        allow delete: if isMember(tripId) && 
+                        (request.auth.uid == memberId || get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId == request.auth.uid);
+      }
+
+      match /expenses/{expenseId} {
+        function isValidExpense(data) {
+          return data.keys().hasAll(['id', 'description', 'amount', 'paidBy', 'splitWith', 'date', 'status']) &&
+                 data.keys().size() <= 8 &&
+                 isValidId(data.id) &&
+                 data.description is string && data.description.size() <= 200 &&
+                 data.amount is number && data.amount > 0 &&
+                 data.paidBy is string &&
+                 data.splitWith is list && data.splitWith.size() > 0 &&
+                 data.status in ['pending', 'settled'];
+        }
+
+        allow read: if isMember(tripId);
+        allow create: if isMember(tripId) && isValidExpense(incoming()) && incoming().paidBy == request.auth.uid;
+        allow update: if isMember(tripId) && 
+                        isValidExpense(incoming()) && 
+                        (
+                          (existing().paidBy == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['description', 'amount', 'splitWith', 'status'])) ||
+                          (get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId == request.auth.uid)
+                        );
+        allow delete: if isMember(tripId) && (existing().paidBy == request.auth.uid || get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId == request.auth.uid);
+      }
+
+      match /votes/{voteId} {
+        function isValidVote(data) {
+          return data.keys().hasAll(['id', 'type', 'itemId', 'votedBy']) &&
+                 data.keys().size() == 4 &&
+                 isValidId(data.id) &&
+                 data.type in ['track', 'hotel', 'kick'] &&
+                 data.votedBy is list;
+        }
+
+        allow read: if isMember(tripId);
+        allow create, update: if isMember(tripId) && isValidVote(incoming());
+        allow delete: if isMember(tripId) && get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId == request.auth.uid;
+      }
+
+      match /messages/{messageId} {
+        function isValidMessage(data) {
+          return data.keys().hasAll(['id', 'senderId', 'text', 'timestamp', 'type']) &&
+                 data.keys().size() == 5 &&
+                 isValidId(data.id) &&
+                 (data.senderId == request.auth.uid || data.type == 'system') &&
+                 data.text is string && data.text.size() <= 1000 &&
+                 data.type in ['text', 'system'];
+        }
+
+        allow read: if isMember(tripId);
+        allow create: if isMember(tripId) && isValidMessage(incoming());
+      }
+    }
+
+    // 4. Bookings
+    match /bookings/{bookingId} {
+      function isValidBooking(data) {
+        return data.keys().hasAll(['userId', 'trackId', 'trackName', 'totalCost', 'checkIn', 'checkOut', 'status', 'createdAt']) &&
+               data.keys().size() <= 11 &&
+               data.userId == request.auth.uid &&
+               data.trackId is string && data.trackId.size() <= 128 &&
+               data.trackName is string && data.trackName.size() <= 200 &&
+               data.totalCost is number && data.totalCost >= 0 &&
+               data.status in ['pending', 'confirmed', 'cancelled'] &&
+               data.createdAt == request.time;
+      }
+
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidBooking(incoming());
+    }
+  }
+}
