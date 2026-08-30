@@ -1,79 +1,95 @@
 # TrackPedia 🏁
 
-A full-stack track day aggregator and trip planning platform built with **React 19**, **TypeScript**, **Tailwind CSS v4**, and **Firebase (Auth & Firestore)**.
+A comprehensive motorsport trip-planning and circuit discovery platform built with **React 19**, **TypeScript**, **Tailwind CSS v4**, and **Firebase (Auth & Firestore)**.
 
-TrackPedia allows motorsport enthusiasts (cars and motorcycles) to discover race tracks across North America, compare bundled track day and nearby lodging packages, coordinate group trips with cost splitting, manage pre-track prep checklists, and save custom itineraries.
+TrackPedia allows car and motorcycle enthusiasts to discover race tracks across North America, compare bundled track day and nearby lodging packages, coordinate group trips with real-time cost splitting, manage pre-track prep checklists, and save custom itineraries.
 
 ---
 
-## 🚀 Live Demo & Repository Setup
+## ✨ Features
 
-### 1. Exporting & Forking from Google AI Studio
-- In Google AI Studio Build, click the **Settings / Menu** icon in the top navigation.
-- Select **Export to GitHub** (to push directly to your personal GitHub account) or **Download ZIP** (to extract and push locally).
-- Create a new public repository on GitHub (e.g. `yourusername/trackpedia`) and link your code.
+- **Circuit Discovery & Telemetry**: Explore 20+ premier North American road courses with track details (length, turn count, decibel limits, configuration maps, and surface types).
+- **Interactive Geospatial Mapping**: Powered by Leaflet and OpenStreetMap with custom circuit markers, radius filtering, and location search.
+- **Lodging & Accommodation Engine**: Curated nearby accommodations and live Overpass OSM geospatial querying to estimate weekend lodging costs.
+- **Package Comparison & Custom Builder**: Multi-track comparison matrix factoring in track fees, hotel nights, transport, and equipment.
+- **Group Trip Planning & Expense Splitter**: Coordinate group track days with member invitations, real-time shared voting on tracks/hotels, interactive expense logging, and automatic debt balance calculations.
+- **Pre-Track Day Checklists**: Dedicated technical inspection checklists for cars and motorcycles covering fluid checks, brake pads, tire pressures, torque specs, and safety gear.
+- **User Authentication & Cloud Persistence**: Integrated Firebase Auth and Cloud Firestore to persist saved itineraries, group trips, and user profiles across sessions.
 
-### 2. Local Development Setup
+---
+
+## 🛠️ Tech Stack & Architecture
+
+### **Frontend & UI**
+- **React 19**: Modern component architecture leveraging hooks and functional components.
+- **TypeScript**: Strict type definitions for tracks, accommodations, group planning, and telemetry.
+- **Tailwind CSS v4**: High-performance, modern styling with accessible color contrast and responsive layouts.
+- **Motion (`motion/react`)**: Physics-based UI animations, layout transitions, and interactive dialogs.
+- **Lucide Icons**: Consistent iconography across motorsport telemetry, finance, and navigation components.
+- **Leaflet & React-Leaflet**: Interactive OpenStreetMap visualization with custom circuit coordinates and popup details.
+- **Date-fns & React-Datepicker**: Weekend duration scheduling and date calculations.
+
+### **Backend & Cloud Services**
+- **Firebase Firestore**: Real-time cloud document database for user profiles, saved itineraries, trip planning rooms, and expense splits.
+- **Firebase Authentication**: Secure user management and session handling with demo guest fallback.
+- **Vite & Node.js**: Fast ES module bundling, development proxy, and production build tooling.
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js (v18 or higher recommended)
+- npm or yarn
+
+### Installation & Local Run
 
 ```bash
-# 1. Clone your repository
+# 1. Clone the repository
 git clone https://github.com/your-username/trackpedia.git
 cd trackpedia
 
 # 2. Install dependencies
 npm install
 
-# 3. Start development server
+# 3. Start the development server
 npm run dev
 ```
 
 The application will be available at `http://localhost:3000`.
 
----
+### Build for Production
 
-## 🛠️ Tech Stack & Architecture
-
-- **Frontend Core**: React 19, TypeScript, Vite
-- **Styling & Motion**: Tailwind CSS v4, Motion (`motion/react`), Lucide Icons
-- **Mapping & GIS**: Leaflet, React-Leaflet (interactive OpenStreetMap integration with custom track coordinate markers)
-- **Backend & Persistence**: Firebase Authentication (Email/Password & Social Auth), Cloud Firestore (user profiles, group trips, checklist state)
-- **Date & State Management**: `date-fns`, `react-datepicker`, React Context API
-
----
-
-## 📦 Deployment Options
-
-### Option A: Vercel (Recommended for SPA)
-1. Push your repository to GitHub.
-2. Sign in to [Vercel](https://vercel.com) and import the repository.
-3. Build Settings:
-   - **Framework Preset**: Vite
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-4. Click **Deploy**.
-
-### Option B: Firebase Hosting
 ```bash
-npm install -g firebase-tools
-firebase login
-firebase init hosting
-# Set public directory to 'dist' and configure as single-page app
 npm run build
-firebase deploy --only hosting
 ```
 
-### Option C: Netlify
-1. Connect GitHub repo on [Netlify](https://netlify.com).
-2. Set build command: `npm run build` and publish directory: `dist`.
-3. Add a `_redirects` file in `public/` containing: `/*    /index.html   200`.
+This compiles the static assets into the `dist/` directory ready for deployment.
 
 ---
 
-## 💼 Portfolio & Resume Highlights (For New Grad Showcase)
+## 📁 Project Structure
 
-Here are sample resume bullets and talking points highlighting technical depth:
+```
+├── src/
+│   ├── components/
+│   │   ├── CheckoutPage.tsx      # Booking invoice and package summary
+│   │   ├── Navigation.tsx        # Responsive app navigation and mode switcher
+│   │   ├── PlanningPage.tsx      # Group coordination, expense split, and voting
+│   │   ├── SafeImage.tsx         # Resilient image loader with CDN fallbacks
+│   │   └── UserProfile.tsx       # Profile management, vehicle specs, and saved trips
+│   ├── constants.ts              # Track dataset, curated lodging, and default mock state
+│   ├── types.ts                  # Global TypeScript interfaces and schemas
+│   ├── App.tsx                   # Main application coordinator and view routing
+│   └── main.tsx                  # Application entry point
+├── firestore.rules               # Firestore security rules
+├── metadata.json                 # Application metadata and capabilities
+└── package.json                  # Dependencies and build scripts
+```
 
-- **Full-Stack Application Architecture**: Built a responsive single-page motorsport aggregator and trip planner supporting multi-state search, lodging package comparison, and group planning.
-- **Geospatial & Interactive Visualizations**: Integrated Leaflet GIS mapping with custom map pins and reactive coordinate bounds to visualize track locations and nearest accommodations across 20+ national racing circuits.
-- **Real-Time Cloud Persistence**: Implemented Firebase Authentication and Firestore real-time listeners for group itinerary synchronization, dynamic cost-split calculations, and packing checklists.
-- **Modern Performance & UI Craft**: Styled with Tailwind CSS v4 and animated using Motion for fluid modal dialogs and seamless view transitions.
+---
+
+## 🔒 Security & Privacy
+
+- Client credentials and database interactions are governed by Firestore security rules (`firestore.rules`).
+- External images and CDN resources enforce `referrerPolicy="no-referrer"` to ensure reliable cross-origin asset loading.
