@@ -14,6 +14,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { UserProfile as UserProfileType } from '../types';
+import { SafeImage } from './SafeImage';
 
 interface UserProfileProps {
   user: UserProfileType;
@@ -40,11 +41,11 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onLogout, onClos
         {/* Profile Card */}
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-8 text-center">
           <div className="relative inline-block mb-6">
-            <img 
+            <SafeImage 
               src={user.avatar} 
               className="w-32 h-32 rounded-3xl object-cover border-4 border-white shadow-xl"
               alt={user.name}
-              referrerPolicy="no-referrer"
+              fallbackSrc="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80"
             />
             <button className="absolute -bottom-2 -right-2 bg-brand text-white p-2 rounded-xl shadow-lg border-2 border-white hover:scale-110 transition-transform">
               <Camera className="w-4 h-4" />

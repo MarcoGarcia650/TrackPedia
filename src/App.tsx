@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import { format, addDays } from 'date-fns';
-import { TRACKS, HOTELS, MOCK_GROUP, STATE_MAP, MAJOR_HUBS } from './constants';
+import { TRACKS, HOTELS, MOCK_GROUP, STATE_MAP, MAJOR_HUBS, generateDefaultHotels, HOTEL_IMAGES } from './constants';
 import { Track, Hotel, TrackDayPackage, GroupTrip } from './types';
 
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
@@ -44,6 +44,7 @@ import { UserProfile } from './components/UserProfile';
 import { LoginPage } from './components/LoginPage';
 import { ChecklistPage } from './components/ChecklistPage';
 import { CheckoutPage } from './components/CheckoutPage';
+import { SafeImage } from './components/SafeImage';
 import { useAuth } from './context/AuthContext';
 import { db } from './lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, onSnapshot } from 'firebase/firestore';
@@ -100,7 +101,7 @@ const Navbar = ({ onHome, onPlan, onProfile, onChecklist, profile, currentView, 
       <div className="flex items-center gap-4 pl-4 border-l border-slate-200">
         <div className="flex items-center gap-2 text-[11px]">
           <span>USD</span>
-          <img src="https://flagcdn.com/w20/us.png" alt="US" className="w-4 h-auto rounded-xs opacity-80" referrerPolicy="no-referrer" />
+          <SafeImage src="https://flagcdn.com/w20/us.png" alt="US" className="w-4 h-auto rounded-xs opacity-80" fallbackSrc="https://flagcdn.com/w20/us.png" />
         </div>
         
         {isAuthenticated ? (
@@ -108,10 +109,11 @@ const Navbar = ({ onHome, onPlan, onProfile, onChecklist, profile, currentView, 
             onClick={onProfile}
             className={`relative group ${currentView === 'profile' ? 'ring-2 ring-brand ring-offset-2 rounded-full' : ''}`}
           >
-            <img 
-              src={profile?.avatar || "https://i.pravatar.cc/150?u=m1"} 
+            <SafeImage 
+              src={profile?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"} 
               className="w-8 h-8 rounded-full object-cover border border-slate-200 group-hover:scale-105 transition-transform" 
-              referrerPolicy="no-referrer"
+              fallbackSrc="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+              alt="Profile"
             />
             <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
           </button>
@@ -323,7 +325,7 @@ const ResultCard: React.FC<{ track: Track; onSelect: (t: Track) => void; onCompa
       onClick={() => onSelect(track)}
     >
       <div className="md:w-1/3 aspect-video md:aspect-auto md:h-auto relative overflow-hidden shrink-0">
-        <img src={track.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={track.name} referrerPolicy="no-referrer" />
+        <SafeImage src={track.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={track.name} />
         <button 
           onClick={(e) => {
             e.stopPropagation();
@@ -515,45 +517,65 @@ export default function App() {
   const [isFetchingHotels, setIsFetchingHotels] = useState<Record<string, boolean>>({});
 
   const fetchNearbyLodging = async (track: Track) => {
-    if (fetchedHotels[track.id] || isFetchingHotels[track.id]) return;
-    
+    // Determine curated hotels first
+    const curated = HOTELS.filter(h => h.trackId === track.id);
+    const initialHotels = curated.length > 0 ? curated : generateDefaultHotels(track);
+
+    // If we haven't set hotels for this track, initialize immediately so UI is never blank
+    setFetchedHotels(prev => {
+      if (prev[track.id] && prev[track.id].length > 0) return prev;
+      return { ...prev, [track.id]: initialHotels };
+    });
+
+    setSelectedHotels(prev => {
+      if (prev[track.id]) return prev;
+      return { ...prev, [track.id]: initialHotels[0] };
+    });
+
+    if (isFetchingHotels[track.id]) return;
     setIsFetchingHotels(prev => ({ ...prev, [track.id]: true }));
     
     try {
-      // Overpass API to find hotels within 15km
-      const query = `[out:json];node["tourism"~"hotel|motel|guest_house|hostel"](around:20000,${track.lat},${track.lng});out;`;
-      const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
-      const data = await response.json();
-      
-      const results: Hotel[] = (data.elements || []).slice(0, 5).map((el: any) => {
-        const name = el.tags.name || "Nearby Lodging";
-        // Generate random but deterministic price based on ID and name length
-        const basePrice = 80 + (el.id % 120);
-        return {
-          id: `osm-${el.id}`,
-          name: name,
-          pricePerNight: basePrice,
-          rating: Number((3.5 + (Math.random() * 1.5)).toFixed(1)),
-          image: `https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=400&auto=format&fit=crop&sig=${el.id}`,
-          trackId: track.id
-        };
+      // Overpass API with short abort timeout to prevent hanging or rate-limit delays
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+      const query = `[out:json][timeout:3];node["tourism"~"hotel|motel|guest_house|hostel"](around:25000,${track.lat},${track.lng});out 5;`;
+      const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`, {
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
-      // Merge with local mock hotels
-      const localHotels = HOTELS.filter(h => h.trackId === track.id);
-      const allHotels = [...localHotels, ...results].filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
+      if (response.ok) {
+        const data = await response.json();
+        const osmResults: Hotel[] = (data.elements || [])
+          .filter((el: any) => el.tags && (el.tags.name))
+          .slice(0, 4)
+          .map((el: any, index: number) => {
+            const name = el.tags.name;
+            const basePrice = 85 + (el.id % 95);
+            return {
+              id: `osm-${el.id}`,
+              name,
+              pricePerNight: basePrice,
+              rating: Number((4.0 + ((el.id % 9) / 10)).toFixed(1)),
+              image: HOTEL_IMAGES[(index + 3) % HOTEL_IMAGES.length],
+              trackId: track.id
+            };
+          });
 
-      setFetchedHotels(prev => ({ ...prev, [track.id]: allHotels }));
-      
-      // Select first hotel by default if none selected
-      if (allHotels.length > 0 && !selectedHotels[track.id]) {
-        setSelectedHotels(prev => ({ ...prev, [track.id]: allHotels[0] }));
+        if (osmResults.length > 0) {
+          const combined = [...initialHotels];
+          osmResults.forEach(osmH => {
+            if (!combined.some(existing => existing.name.toLowerCase() === osmH.name.toLowerCase())) {
+              combined.push(osmH);
+            }
+          });
+          setFetchedHotels(prev => ({ ...prev, [track.id]: combined }));
+        }
       }
     } catch (err) {
-      console.error("Failed to fetch hotels", err);
-      // Fallback to mock data
-      const localHotels = HOTELS.filter(h => h.trackId === track.id);
-      setFetchedHotels(prev => ({ ...prev, [track.id]: localHotels }));
+      // Keep curated & default hotels intact
     } finally {
       setIsFetchingHotels(prev => ({ ...prev, [track.id]: false }));
     }
@@ -698,12 +720,16 @@ export default function App() {
     const displayTracks = comparisonItems.length > 0 ? comparisonItems : TRACKS.slice(0, 3);
     
     return displayTracks.map(track => {
-      const trackHotels = fetchedHotels[track.id] || HOTELS.filter(h => h.trackId === track.id);
-      const selectedHotel = selectedHotels[track.id] || trackHotels[0] || null;
+      const curated = HOTELS.filter(h => h.trackId === track.id);
+      const fallbackList = curated.length > 0 ? curated : generateDefaultHotels(track);
+      const trackHotels = (fetchedHotels[track.id] && fetchedHotels[track.id].length > 0)
+        ? fetchedHotels[track.id]
+        : fallbackList;
+      const selectedHotel = selectedHotels[track.id] || trackHotels[0] || fallbackList[0];
       const nights = params.checkOut ? Math.max(1, Math.round((params.checkOut.getTime() - params.checkIn.getTime()) / (1000 * 60 * 60 * 24))) : 1;
       return {
         track,
-         hotels: trackHotels,
+        hotels: trackHotels,
         selectedHotel,
         nights,
         totalCost: track.basePrice + (selectedHotel ? selectedHotel.pricePerNight * nights : 0)
@@ -814,8 +840,12 @@ export default function App() {
   }
 
   if (view === 'trackDetail' && selectedTrack) {
-    const trackHotels = fetchedHotels[selectedTrack.id] || HOTELS.filter(h => h.trackId === selectedTrack.id);
-    const selectedHotel = selectedHotels[selectedTrack.id] || trackHotels[0] || null;
+    const curated = HOTELS.filter(h => h.trackId === selectedTrack.id);
+    const fallbackList = curated.length > 0 ? curated : generateDefaultHotels(selectedTrack);
+    const trackHotels = (fetchedHotels[selectedTrack.id] && fetchedHotels[selectedTrack.id].length > 0)
+      ? fetchedHotels[selectedTrack.id]
+      : fallbackList;
+    const selectedHotel = selectedHotels[selectedTrack.id] || trackHotels[0] || fallbackList[0];
     const nights = params.checkOut ? Math.max(1, Math.round((params.checkOut.getTime() - params.checkIn.getTime()) / (1000 * 60 * 60 * 24))) : 1;
     
     return (
@@ -872,7 +902,7 @@ export default function App() {
             <div className="hidden md:flex gap-3">
               {comparisonItems.map(item => (
                 <div key={item.id} className="flex items-center gap-2 bg-slate-50 px-1 py-1 pr-2.5 rounded-full border border-slate-200">
-                  <img src={item.image} className="w-5 h-5 rounded-full object-cover" referrerPolicy="no-referrer" />
+                  <SafeImage src={item.image} className="w-5 h-5 rounded-full object-cover" alt={item.name} />
                   <span className="text-[10px] font-bold">{item.name}</span>
                   <X className="w-3 h-3 cursor-pointer text-slate-400 hover:text-red-500" onClick={() => setComparisonItems(comparisonItems.filter(i => i.id !== item.id))} />
                 </div>
@@ -905,11 +935,11 @@ export default function App() {
       {/* Hero Section */}
       <section className="relative min-h-[600px] flex flex-col items-center pt-24 px-6 overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <img 
-            src="https://www.porschesprint.com/wp-content/uploads/elementor/thumbs/PSC_Sonoma_Parade-Laps-_Kyle-Schwab_13532-scaled-rhygikkb9g3l26eph7mifaqgh79rx79uzvem5hep3k.jpg" 
+          <SafeImage 
+            src="https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=2000&q=85" 
+            fallbackSrc="https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=2000&q=85"
             className="w-full h-full object-cover brightness-[0.4]"
-            alt="Track"
-            referrerPolicy="no-referrer"
+            alt="Motorsport Track"
           />
           <div className="absolute inset-0 bg-linear-to-b from-black/60 via-black/20 to-slate-900/40 backdrop-blur-[2px]" />
         </div>
@@ -1040,8 +1070,8 @@ export default function App() {
               scrollWheelZoom={false}
             >
               <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               {TRACKS.map((track) => (
                 <Marker 
@@ -1052,7 +1082,7 @@ export default function App() {
                   <Popup className="track-popup">
                     <div className="flex items-center gap-3 p-1 min-w-[200px]">
                       <div className="w-20 aspect-video rounded-lg overflow-hidden flex-shrink-0">
-                        <img src={track.image} className="w-full h-full object-cover" alt={track.name} referrerPolicy="no-referrer" />
+                        <SafeImage src={track.image} className="w-full h-full object-cover" alt={track.name} />
                       </div>
                       <div className="flex flex-col">
                         <h4 className="font-bold text-brand m-0 leading-tight">{track.name}</h4>
@@ -1171,16 +1201,15 @@ const ComparisonDashboard = ({
               className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="relative aspect-video">
-                <img 
+                <SafeImage 
                   src={pkg.track.image} 
                   alt={pkg.track.name}
                   className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
                 />
                 <div className="absolute inset-0 bg-linear-to-t from-black/80 to-transparent flex items-end p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-12 aspect-video rounded-lg border-2 border-white/40 overflow-hidden shrink-0 shadow-lg">
-                      <img src={pkg.track.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <SafeImage src={pkg.track.image} className="w-full h-full object-cover" alt={pkg.track.name} />
                     </div>
                     <div>
                       <h3 className="text-white font-bold text-lg leading-tight">{pkg.track.name}</h3>
@@ -1209,7 +1238,7 @@ const ComparisonDashboard = ({
                         }`}
                       >
                         <div className="flex gap-3">
-                          <img src={hotel.image} className="w-12 h-12 rounded-lg object-cover" referrerPolicy="no-referrer" />
+                          <SafeImage src={hotel.image} className="w-12 h-12 rounded-lg object-cover" alt={hotel.name} />
                           <div className="flex-1 min-w-0">
                             <h4 className="text-sm font-bold truncate">{hotel.name}</h4>
                             <div className="flex items-center gap-2 mt-0.5">
@@ -1287,7 +1316,7 @@ const ComparisonDashboard = ({
                         className="w-full flex items-center gap-4 p-3 hover:bg-slate-50 rounded-xl transition-all text-left group active:scale-[0.98]"
                       >
                         <div className="w-14 aspect-video rounded-lg overflow-hidden shrink-0">
-                          <img src={track.image} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all shadow-sm" />
+                          <SafeImage src={track.image} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all shadow-sm" alt={track.name} />
                         </div>
                         <div>
                           <div className="text-sm font-bold text-slate-900">{track.name}</div>

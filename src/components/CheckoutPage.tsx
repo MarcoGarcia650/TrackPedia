@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { TrackDayPackage } from '../types';
 import { format } from 'date-fns';
+import { SafeImage } from './SafeImage';
 
 interface CheckoutPageProps {
   pkg: TrackDayPackage;
@@ -111,7 +112,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ pkg, onBack, onHome,
             {/* Package Summary at the Top */}
             <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
               <div className="aspect-video relative">
-                <img src={pkg.track.image} className="w-full h-full object-cover" alt={pkg.track.name} referrerPolicy="no-referrer" />
+                <SafeImage src={pkg.track.image} className="w-full h-full object-cover" alt={pkg.track.name} />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-6 left-8">
                   <h3 className="text-white font-black text-2xl leading-tight">{pkg.track.name}</h3>
@@ -138,7 +139,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({ pkg, onBack, onHome,
                   {pkg.selectedHotel && (
                     <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
                       <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0">
-                        <img src={pkg.selectedHotel.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        <SafeImage src={pkg.selectedHotel.image} className="w-full h-full object-cover" alt={pkg.selectedHotel.name} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lodging</p>

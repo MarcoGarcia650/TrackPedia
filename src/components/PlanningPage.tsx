@@ -21,8 +21,9 @@ import {
   ExternalLink,
   MapPin
 } from 'lucide-react';
-import { GroupTrip, GroupMember, Expense, Vote, Track, ChatMessage } from '../types';
-import { TRACKS, MOCK_TRIPS_HISTORY } from '../constants';
+import { GroupTrip, GroupMember, Expense, Vote, Track, Hotel, ChatMessage } from '../types';
+import { TRACKS, HOTELS, MOCK_TRIPS_HISTORY } from '../constants';
+import { SafeImage } from './SafeImage';
 
 interface PlanningPageProps {
   trip: GroupTrip;
@@ -32,6 +33,7 @@ interface PlanningPageProps {
 
 export const PlanningPage: React.FC<PlanningPageProps> = ({ trip: initialTrip, isDemo = false, onLogin }) => {
   const [trip, setTrip] = useState<GroupTrip>(initialTrip);
+  const [votingTab, setVotingTab] = useState<'tracks' | 'hotels'>('tracks');
   
   const demoGuard = (action: () => void) => {
     if (isDemo) {
@@ -193,11 +195,18 @@ export const PlanningPage: React.FC<PlanningPageProps> = ({ trip: initialTrip, i
 
   const handleInviteMember = () => {
     const names = ['Chris', 'Taylor', 'Jamie', 'Morgan'];
-    const name = names[Math.floor(Math.random() * names.length)];
+    const avatars = [
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80',
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80'
+    ];
+    const randomIndex = Math.floor(Math.random() * names.length);
+    const name = names[randomIndex];
     const newMember: GroupMember = {
       id: `m${trip.members.length + 1}`,
       name,
-      avatar: `https://i.pravatar.cc/150?u=${Math.random()}`,
+      avatar: avatars[randomIndex],
       budget: 1000,
       hasVoted: false
     };
@@ -325,7 +334,7 @@ export const PlanningPage: React.FC<PlanningPageProps> = ({ trip: initialTrip, i
                   <div className="flex items-center gap-2">
                     <div className="flex -space-x-2">
                       {trip.members.map(m => (
-                        <img key={m.id} src={m.avatar} className="w-8 h-8 rounded-full border-2 border-white object-cover" title={m.name} referrerPolicy="no-referrer" />
+                        <SafeImage key={m.id} src={m.avatar} className="w-8 h-8 rounded-full border-2 border-white object-cover" title={m.name} alt={m.name} />
                       ))}
                       <div 
                         onClick={() => setShowManageTrip(true)}
@@ -361,7 +370,7 @@ export const PlanningPage: React.FC<PlanningPageProps> = ({ trip: initialTrip, i
                     {trip.members.map(m => (
                       <div key={m.id} className="p-6 flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <img src={m.avatar} className="w-12 h-12 rounded-2xl object-cover shadow-sm" referrerPolicy="no-referrer" />
+                          <SafeImage src={m.avatar} className="w-12 h-12 rounded-2xl object-cover shadow-sm" alt={m.name} />
                           <div>
                             <p className="font-black text-slate-900 leading-none">{m.name}</p>
                             <p className="text-xs font-bold text-slate-400 mt-1">Budget: ${m.budget}</p>
@@ -390,9 +399,9 @@ export const PlanningPage: React.FC<PlanningPageProps> = ({ trip: initialTrip, i
                   <div className="space-y-4 relative z-10">
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 flex items-center justify-between border border-white/10">
                       <div className="flex items-center gap-3">
-                        <img src={trip.members[1].avatar} className="w-8 h-8 rounded-lg" referrerPolicy="no-referrer" />
+                        <SafeImage src={trip.members[1].avatar} className="w-8 h-8 rounded-lg" alt="Member" />
                         <ArrowRight className="w-4 h-4 text-white/50" />
-                        <img src={trip.members[0].avatar} className="w-8 h-8 rounded-lg" referrerPolicy="no-referrer" />
+                        <SafeImage src={trip.members[0].avatar} className="w-8 h-8 rounded-lg" alt="Member" />
                       </div>
                       <div className="text-right">
                         <p className="font-black">$125</p>
@@ -401,9 +410,9 @@ export const PlanningPage: React.FC<PlanningPageProps> = ({ trip: initialTrip, i
                     </div>
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 flex items-center justify-between border border-white/10">
                       <div className="flex items-center gap-3">
-                        <img src={trip.members[2].avatar} className="w-8 h-8 rounded-lg" referrerPolicy="no-referrer" />
+                        <SafeImage src={trip.members[2].avatar} className="w-8 h-8 rounded-lg" alt="Member" />
                         <ArrowRight className="w-4 h-4 text-white/50" />
-                        <img src={trip.members[0].avatar} className="w-8 h-8 rounded-lg" referrerPolicy="no-referrer" />
+                        <SafeImage src={trip.members[0].avatar} className="w-8 h-8 rounded-lg" alt="Member" />
                       </div>
                       <div className="text-right">
                         <p className="font-black">$210</p>
@@ -435,63 +444,138 @@ export const PlanningPage: React.FC<PlanningPageProps> = ({ trip: initialTrip, i
                   <p className="text-slate-400 font-bold mt-1 uppercase text-xs tracking-widest">Vote on your favorite tracks & stays</p>
                 </div>
                 <div className="flex bg-slate-100 p-1 rounded-xl">
-                  <button className="px-6 py-2 bg-white rounded-lg shadow-sm font-black text-xs text-brand uppercase tracking-widest">Tracks</button>
-                  <button className="px-6 py-2 font-black text-xs text-slate-400 uppercase tracking-widest">Hotels</button>
+                  <button 
+                    onClick={() => setVotingTab('tracks')}
+                    className={`px-6 py-2 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${
+                      votingTab === 'tracks' ? 'bg-white shadow-sm text-brand' : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    Tracks
+                  </button>
+                  <button 
+                    onClick={() => setVotingTab('hotels')}
+                    className={`px-6 py-2 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${
+                      votingTab === 'hotels' ? 'bg-white shadow-sm text-brand' : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    Hotels
+                  </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {TRACKS.slice(0, 6).map(track => {
-                  const voteData = trip.votes.find(v => v.itemId === track.id && v.type === 'track');
-                  const voteCount = voteData?.votedBy.length || 0;
-                  const hasVoted = voteData?.votedBy.includes('m1');
+              {votingTab === 'tracks' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {TRACKS.slice(0, 6).map(track => {
+                    const voteData = trip.votes.find(v => v.itemId === track.id && v.type === 'track');
+                    const voteCount = voteData?.votedBy.length || 0;
+                    const hasVoted = voteData?.votedBy.includes('m1');
 
-                  return (
-                    <motion.div 
-                      key={track.id}
-                      whileHover={{ y: -5 }}
-                      className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm flex flex-col group"
-                    >
-                      <div className="aspect-video relative">
-                        <img src={track.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={track.name} referrerPolicy="no-referrer" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                        <div className="absolute bottom-4 left-4">
-                          <p className="text-white text-[10px] font-black uppercase tracking-widest">{track.location}</p>
-                          <h3 className="text-white text-xl font-black leading-none mt-1">{track.name}</h3>
-                        </div>
-                      </div>
-                      <div className="p-6 flex flex-col flex-1">
-                        <div className="flex items-center justify-between mb-6">
-                          <div className="flex -space-x-2">
-                            {voteData?.votedBy.map(voterId => {
-                              const member = trip.members.find(m => m.id === voterId);
-                              return (
-                                <img key={voterId} src={member?.avatar} className="w-7 h-7 rounded-full border-2 border-white object-cover" title={member?.name} referrerPolicy="no-referrer" />
-                              );
-                            })}
-                            {voteCount === 0 && <span className="text-[10px] font-bold text-slate-400 uppercase ml-2">No votes yet</span>}
+                    return (
+                      <motion.div 
+                        key={track.id}
+                        whileHover={{ y: -5 }}
+                        className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm flex flex-col group"
+                      >
+                        <div className="aspect-video relative">
+                          <SafeImage src={track.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={track.name} />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                          <div className="absolute bottom-4 left-4">
+                            <p className="text-white text-[10px] font-black uppercase tracking-widest">{track.location}</p>
+                            <h3 className="text-white text-xl font-black leading-none mt-1">{track.name}</h3>
                           </div>
-                          <span className="bg-slate-50 text-slate-900 text-[10px] font-black px-2 pb-0.5 pt-1 rounded-sm border border-slate-100 uppercase tracking-widest">
-                            {voteCount} Voter{voteCount !== 1 ? 's' : ''}
-                          </span>
                         </div>
-                        
-                        <button 
-                          onClick={() => handleVote(track.id, 'track')}
-                          className={`mt-auto w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all ${
-                            hasVoted 
-                              ? 'bg-brand text-white shadow-lg shadow-brand/20' 
-                              : 'bg-slate-50 text-slate-400 hover:bg-brand/5 hover:text-brand border border-slate-100'
-                          }`}
-                        >
-                          <VoteIcon className="w-4 h-4" />
-                          {hasVoted ? 'Voted' : 'Vote Track'}
-                        </button>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
+                        <div className="p-6 flex flex-col flex-1">
+                          <div className="flex items-center justify-between mb-6">
+                            <div className="flex -space-x-2">
+                              {voteData?.votedBy.map(voterId => {
+                                const member = trip.members.find(m => m.id === voterId);
+                                return (
+                                  <SafeImage key={voterId} src={member?.avatar} className="w-7 h-7 rounded-full border-2 border-white object-cover" title={member?.name} alt={member?.name} />
+                                );
+                              })}
+                              {voteCount === 0 && <span className="text-[10px] font-bold text-slate-400 uppercase ml-2">No votes yet</span>}
+                            </div>
+                            <span className="bg-slate-50 text-slate-900 text-[10px] font-black px-2 pb-0.5 pt-1 rounded-sm border border-slate-100 uppercase tracking-widest">
+                              {voteCount} Voter{voteCount !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          
+                          <button 
+                            onClick={() => handleVote(track.id, 'track')}
+                            className={`mt-auto w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all ${
+                              hasVoted 
+                                ? 'bg-brand text-white shadow-lg shadow-brand/20' 
+                                : 'bg-slate-50 text-slate-400 hover:bg-brand/5 hover:text-brand border border-slate-100'
+                            }`}
+                          >
+                            <VoteIcon className="w-4 h-4" />
+                            {hasVoted ? 'Voted' : 'Vote Track'}
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {HOTELS.slice(0, 9).map(hotel => {
+                    const voteData = trip.votes.find(v => v.itemId === hotel.id && v.type === 'hotel');
+                    const voteCount = voteData?.votedBy.length || 0;
+                    const hasVoted = voteData?.votedBy.includes('m1');
+                    const trackObj = TRACKS.find(t => t.id === hotel.trackId);
+
+                    return (
+                      <motion.div 
+                        key={hotel.id}
+                        whileHover={{ y: -5 }}
+                        className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm flex flex-col group"
+                      >
+                        <div className="aspect-video relative">
+                          <SafeImage src={hotel.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={hotel.name} />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                          <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+                            <div>
+                              <p className="text-white/80 text-[10px] font-black uppercase tracking-widest">{trackObj?.name || 'Track Lodging'}</p>
+                              <h3 className="text-white text-lg font-black leading-tight mt-0.5 truncate">{hotel.name}</h3>
+                            </div>
+                            <div className="bg-white/20 backdrop-blur-md px-2 py-1 rounded-lg text-white font-black text-xs shrink-0">
+                              ${hotel.pricePerNight}<span className="text-[10px] font-normal text-white/80">/nt</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="p-6 flex flex-col flex-1">
+                          <div className="flex items-center justify-between mb-6">
+                            <div className="flex -space-x-2">
+                              {voteData?.votedBy.map(voterId => {
+                                const member = trip.members.find(m => m.id === voterId);
+                                return (
+                                  <SafeImage key={voterId} src={member?.avatar} className="w-7 h-7 rounded-full border-2 border-white object-cover" title={member?.name} alt={member?.name} />
+                                );
+                              })}
+                              {voteCount === 0 && <span className="text-[10px] font-bold text-slate-400 uppercase ml-2">No votes yet</span>}
+                            </div>
+                            <span className="bg-slate-50 text-slate-900 text-[10px] font-black px-2 pb-0.5 pt-1 rounded-sm border border-slate-100 uppercase tracking-widest">
+                              {voteCount} Voter{voteCount !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          
+                          <button 
+                            onClick={() => handleVote(hotel.id, 'hotel')}
+                            className={`mt-auto w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all ${
+                              hasVoted 
+                                ? 'bg-brand text-white shadow-lg shadow-brand/20' 
+                                : 'bg-slate-50 text-slate-400 hover:bg-brand/5 hover:text-brand border border-slate-100'
+                            }`}
+                          >
+                            <VoteIcon className="w-4 h-4" />
+                            {hasVoted ? 'Voted' : 'Vote Hotel'}
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -544,7 +628,7 @@ export const PlanningPage: React.FC<PlanningPageProps> = ({ trip: initialTrip, i
                       {!isMe && (
                         <div className="w-8 h-8 flex-shrink-0">
                           {showAvatar ? (
-                            <img src={sender?.avatar} className="w-8 h-8 rounded-full border border-slate-200" alt={sender?.name} referrerPolicy="no-referrer" />
+                            <SafeImage src={sender?.avatar} className="w-8 h-8 rounded-full border border-slate-200" alt={sender?.name} />
                           ) : <div className="w-8" />}
                         </div>
                       )}
@@ -642,7 +726,7 @@ export const PlanningPage: React.FC<PlanningPageProps> = ({ trip: initialTrip, i
                       <div className="flex items-center justify-between">
                         <div className="flex -space-x-2">
                           {oldTrip.members.map(m => (
-                            <img key={m.id} src={m.avatar} className="w-8 h-8 rounded-full border-2 border-white object-cover" title={m.name} referrerPolicy="no-referrer" />
+                            <SafeImage key={m.id} src={m.avatar} className="w-8 h-8 rounded-full border-2 border-white object-cover" title={m.name} alt={m.name} />
                           ))}
                         </div>
                         <div className="text-right">
@@ -745,7 +829,7 @@ export const PlanningPage: React.FC<PlanningPageProps> = ({ trip: initialTrip, i
                             </td>
                             <td className="px-6 py-6">
                               <div className="flex items-center gap-2">
-                                <img src={payer?.avatar} className="w-6 h-6 rounded-full" referrerPolicy="no-referrer" />
+                                <SafeImage src={payer?.avatar} className="w-6 h-6 rounded-full" alt={payer?.name} />
                                 <span className="text-slate-600">{payer?.name}</span>
                               </div>
                             </td>
@@ -753,7 +837,7 @@ export const PlanningPage: React.FC<PlanningPageProps> = ({ trip: initialTrip, i
                             <td className="px-6 py-6">
                               <div className="flex -space-x-1">
                                 {expense.splitWith.map(sid => (
-                                  <img key={sid} src={trip.members.find(m => m.id === sid)?.avatar} className="w-5 h-5 rounded-full border border-white" referrerPolicy="no-referrer" />
+                                  <SafeImage key={sid} src={trip.members.find(m => m.id === sid)?.avatar} className="w-5 h-5 rounded-full border border-white" alt="Member" />
                                 ))}
                               </div>
                             </td>
@@ -790,7 +874,7 @@ export const PlanningPage: React.FC<PlanningPageProps> = ({ trip: initialTrip, i
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Awaiting Votes:</span>
           <div className="flex -space-x-1">
             {trip.members.filter(m => !m.hasVoted).map(m => (
-              <img key={m.id} src={m.avatar} className="w-5 h-5 rounded-full border border-white opacity-50 grayscale" title={m.name} referrerPolicy="no-referrer" />
+              <SafeImage key={m.id} src={m.avatar} className="w-5 h-5 rounded-full border border-white opacity-50 grayscale" title={m.name} alt={m.name} />
             ))}
           </div>
         </div>
@@ -889,7 +973,7 @@ export const PlanningPage: React.FC<PlanningPageProps> = ({ trip: initialTrip, i
                                : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
                            }`}
                          >
-                           <img src={m.avatar} className={`w-6 h-6 rounded-lg ${isSelected ? '' : 'grayscale'}`} referrerPolicy="no-referrer" />
+                           <SafeImage src={m.avatar} className={`w-6 h-6 rounded-lg ${isSelected ? '' : 'grayscale'}`} alt={m.name} />
                            <span className="text-[10px] font-bold truncate">{m.name}</span>
                          </button>
                        );
@@ -975,7 +1059,7 @@ export const PlanningPage: React.FC<PlanningPageProps> = ({ trip: initialTrip, i
                     return (
                       <div key={member.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl group hover:border-brand/20 transition-all shadow-sm">
                         <div className="flex items-center gap-3">
-                          <img src={member.avatar} className="w-10 h-10 rounded-xl" referrerPolicy="no-referrer" />
+                          <SafeImage src={member.avatar} className="w-10 h-10 rounded-xl" alt={member.name} />
                           <div>
                             <p className="text-sm font-black text-slate-900">{member.name} {isMe && '(You)'}</p>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">${member.budget} Budget</p>
